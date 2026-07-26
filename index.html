@@ -60,14 +60,25 @@
       <a href="#" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })" class="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">
         lutzkanov.com
       </a>
-      <nav class="flex gap-4 sm:gap-8 text-sm sm:text-base text-slate-600 font-medium">
+      <nav class="hidden sm:flex gap-8 text-base text-slate-600 font-medium">
         <a href="#about" class="hover:text-indigo-600 transition-colors">About</a>
         <a href="#experience" class="hover:text-indigo-600 transition-colors">Experience</a>
         <a href="#skills" class="hover:text-indigo-600 transition-colors">Skills</a>
         <a href="#certificates" class="hover:text-indigo-600 transition-colors">Certificates</a>
         <a href="#contact" class="hover:text-indigo-600 transition-colors">Contact</a>
       </nav>
+      <button id="menu-toggle" aria-label="Toggle menu" aria-expanded="false" class="sm:hidden text-slate-600 hover:text-indigo-600 transition-colors">
+        <svg id="menu-icon-open" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <svg id="menu-icon-close" class="w-6 h-6 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
+    <nav id="mobile-menu" class="hidden sm:hidden flex-col px-6 pb-4 text-slate-600 font-medium border-t border-slate-100">
+      <a href="#about" class="py-2.5 hover:text-indigo-600 transition-colors">About</a>
+      <a href="#experience" class="py-2.5 hover:text-indigo-600 transition-colors">Experience</a>
+      <a href="#skills" class="py-2.5 hover:text-indigo-600 transition-colors">Skills</a>
+      <a href="#certificates" class="py-2.5 hover:text-indigo-600 transition-colors">Certificates</a>
+      <a href="#contact" class="py-2.5 hover:text-indigo-600 transition-colors">Contact</a>
+    </nav>
   </header>
 
   <!-- Hero -->
@@ -386,6 +397,35 @@
 
   <script>
     document.getElementById('year').textContent = new Date().getFullYear();
+
+    const menuToggle = document.getElementById('menu-toggle');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const menuIconOpen = document.getElementById('menu-icon-open');
+    const menuIconClose = document.getElementById('menu-icon-close');
+
+    function closeMobileMenu() {
+      mobileMenu.classList.add('hidden');
+      menuIconOpen.classList.remove('hidden');
+      menuIconClose.classList.add('hidden');
+      menuToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    menuToggle.addEventListener('click', () => {
+      const isOpen = !mobileMenu.classList.contains('hidden');
+      if (isOpen) {
+        closeMobileMenu();
+      } else {
+        mobileMenu.classList.remove('hidden');
+        mobileMenu.classList.add('flex');
+        menuIconOpen.classList.add('hidden');
+        menuIconClose.classList.remove('hidden');
+        menuToggle.setAttribute('aria-expanded', 'true');
+      }
+    });
+
+    mobileMenu.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', closeMobileMenu);
+    });
 
     const revealEls = document.querySelectorAll('.reveal');
     const observer = new IntersectionObserver((entries) => {
