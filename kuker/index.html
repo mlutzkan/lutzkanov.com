@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Пробен ден, пикова събота</title>
+<style>
+  :root {
+    --bg: #faf9f6;
+    --card: #ffffff;
+    --border: #ddd8cc;
+    --text: #2c2c2a;
+    --text-secondary: #5f5e5a;
+    --text-muted: #888780;
+    --accent: #0f6e56;
+    --accent-bg: #e1f5ee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px 16px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 10px; }
+  .subtitle { color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  #save-indicator {
+    font-size: 12px; color: var(--accent); opacity: 0; transition: opacity .3s;
+    background: var(--accent-bg); padding: 2px 8px; border-radius: 10px;
+  }
+  #save-indicator.dirty { opacity: 1; color: var(--text-muted); background: var(--border); }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin: 4px 0 18px;
+    padding: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .toolbar button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .toolbar button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .toolbar select {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    max-width: 100%;
+  }
+  .toolbar .spacer { flex: 1 1 auto; }
+  input[type=text], textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    resize: vertical;
+  }
+  input[type=text]:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  section { margin-bottom: 26px; }
+  label.check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+  }
+  label.check-row input {
+    margin-top: 3px;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+  }
+  label.check-row span { font-size: 14.5px; }
+  .field { margin-top: 10px; }
+  .field label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: block;
+    margin-bottom: 4px;
+  }
+  .date-row { display: flex; gap: 8px; margin: 4px 0 20px; }
+  .final-block {
+    border-top: 2px solid var(--border);
+    margin-top: 8px;
+    padding-top: 18px;
+  }
+  .sig-row { display: flex; gap: 8px; margin-top: 14px; }
+  .sig-row input:last-child { max-width: 110px; }
+  #reset-btn {
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    display: block;
+    margin: 24px 0 0 auto;
+  }
+</style>
+</head>
+<body>
+
+<div class="header-row">
+  <h1>Пробен ден, пикова събота</h1>
+  <span id="save-indicator">Записано</span>
+</div>
+<p class="subtitle">Кандидат: Мартин · попълва се през деня, показва се в края</p>
+
+<div class="toolbar">
+  <button id="save-btn" class="primary" type="button">Запази</button>
+  <button id="save-new-btn" type="button">Запази като нова версия</button>
+  <div class="spacer"></div>
+  <select id="version-select"><option value="">Версии…</option></select>
+  <button id="load-version-btn" type="button">Зареди</button>
+</div>
+
+<div class="date-row">
+  <input type="text" id="f-date" placeholder="Дата (напр. 6 септември)">
+</div>
+
+<div id="sections"></div>
+
+<div class="final-block">
+  <h2>Трите реда в края на деня</h2>
+  <div class="field">
+    <label>1. Какво мина добре днес</label>
+    <textarea id="f-good" rows="2"></textarea>
+  </div>
+  <div class="field">
+    <label>2. Какво видях, че не е наред в хижата</label>
+    <textarea id="f-wrong" rows="2"></textarea>
+  </div>
+  <div class="field">
+    <label>3. Какво бих променил или предложил</label>
+    <textarea id="f-change" rows="2"></textarea>
+  </div>
+  <div class="sig-row">
+    <input type="text" id="f-signature" placeholder="Подпис (име)">
+    <input type="text" id="f-sigdate" placeholder="Дата">
+  </div>
+</div>
+
+<button id="reset-btn">Изчисти всичко</button>
+
+<script>
+const SECTIONS = [
+  {
+    title: "1. Преди пика, изпревари хаоса (до 12:00)",
+    checks: [
+      { id: "c1", text: "Обход на критичните зони преди обяд: каравана, отсервиране, миялно, бар, склад. Записвам какво не е готово." },
+      { id: "c2", text: "Заготовки и съдове за пика с запас: купи, чинии, прибори, консумативи." },
+      { id: "c3", text: "Производствени и складови зони чисти и подредени преди старта." },
+      { id: "c4", text: "Хладилник и склад: продуктите с дати и обозначение. Записвам какво липсва." }
+    ],
+    fields: [
+      { id: "t1", label: "Какво няма да издържи пика, ако не се пипне сега" }
+    ]
+  },
+  {
+    title: "2. Пикът (12:00 – 15:00), най-важният блок",
+    checks: [
+      { id: "c5", text: "Влизам сам където е зле: отсервиране, миялно, транспорт на посуда, зареждане на караваната." },
+      { id: "c6", text: "Зоните за самоотсервиране не преливат: организирам редовно разчистване." },
+      { id: "c7", text: "Следя баланса: коя позиция стои празна, докато друга се дави, и го казвам." },
+      { id: "c8", text: "Караваната тече без задръстване: скара, сглобяване и каса в синхрон." },
+      { id: "c9", text: "Никакво сядане, пушене или изчезване в пика. Почивка само при заместник." },
+      { id: "c10", text: "Топло и учтиво с гостите дори когато е напечено." }
+    ],
+    fields: [
+      { id: "t2", label: "Дисбаланс, който забелязах (кой стои празен, кой дави)" },
+      { id: "t3", label: "Проблем, който сам реших, без да ме пратят" }
+    ]
+  },
+  {
+    title: "3. Активна продажба (наблюдение)",
+    checks: [
+      { id: "c11", text: "Записвам пропуснати продажби: десерт, кафе, напитка или добавка, които никой не предложи." }
+    ],
+    fields: [
+      { id: "t4", label: "Къде оставяме пари на масата" }
+    ]
+  },
+  {
+    title: "4. Контрол и ред",
+    checks: [
+      { id: "c12", text: "Отпадъци, хигиена и ред в общите и производствените зони: какво не е наред." }
+    ],
+    fields: [
+      { id: "t5", label: "Какво видях в склада, бара или кухнята, което не е наред" }
+    ]
+  },
+  {
+    title: "5. Затваряне (към 19:00 – 20:00)",
+    checks: [
+      { id: "c13", text: "Помагам при затварянето и финалното отсервиране, зоната остава чиста." },
+      { id: "c14", text: "Наличности проверени за следващия ден." }
+    ],
+    fields: []
+  }
+];
+
+const container = document.getElementById('sections');
+SECTIONS.forEach(sec => {
+  const wrap = document.createElement('section');
+  let html = `<h2>${sec.title}</h2>`;
+  sec.checks.forEach(c => {
+    html += `
+    <label class="check-row">
+      <input type="checkbox" id="${c.id}">
+      <span>${c.text}</span>
+    </label>`;
+  });
+  sec.fields.forEach(f => {
+    html += `
+    <div class="field">
+      <label>${f.label}</label>
+      <textarea id="${f.id}" rows="2"></textarea>
+    </div>`;
+  });
+  wrap.innerHTML = html;
+  container.appendChild(wrap);
+});
+
+const API_BASE = 'api';
+let loadedVersionId = null;
+
+function collectState() {
+  const state = {};
+  document.querySelectorAll('input[type=checkbox]').forEach(el => state[el.id] = el.checked);
+  document.querySelectorAll('input[type=text]').forEach(el => state[el.id] = el.value);
+  document.querySelectorAll('textarea').forEach(el => state[el.id] = el.value);
+  return state;
+}
+
+function applyState(state) {
+  document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
+  document.querySelectorAll('input[type=text]').forEach(el => el.value = '');
+  document.querySelectorAll('textarea').forEach(el => el.value = '');
+  if (!state) return;
+  Object.keys(state).forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = !!state[id];
+    else el.value = state[id] || '';
+  });
+}
+
+function setIndicator(text, dirty) {
+  const ind = document.getElementById('save-indicator');
+  ind.textContent = text;
+  ind.classList.toggle('dirty', !!dirty);
+  ind.style.opacity = '1';
+  clearTimeout(ind._t);
+  if (!dirty) ind._t = setTimeout(() => { ind.style.opacity = '0'; }, 2000);
+}
+
+function formatDate(iso) {
+  try {
+    return new Date(iso).toLocaleString('bg-BG', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch (e) { return iso; }
+}
+
+async function refreshVersionList(selectId) {
+  const select = document.getElementById('version-select');
+  try {
+    const res = await fetch(`${API_BASE}/list`);
+    const data = await res.json();
+    select.innerHTML = '<option value="">Версии…</option>';
+    (data.items || []).forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.id;
+      opt.textContent = `${formatDate(item.savedAt)}${item.label ? ' — ' + item.label : ''}`;
+      select.appendChild(opt);
+    });
+    if (selectId) select.value = selectId;
+  } catch (e) {
+    // listing failed silently; save/load still work independently
+  }
+}
+
+async function loadVersion(id) {
+  const url = id ? `${API_BASE}/load?id=${encodeURIComponent(id)}` : `${API_BASE}/load`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('load failed');
+    const result = await res.json();
+    loadedVersionId = result.id || null;
+    applyState(result.data);
+    setIndicator(result.id ? 'Заредено' : 'Няма запазени данни', false);
+  } catch (e) {
+    setIndicator('Няма връзка със сървъра', true);
+  }
+}
+
+async function saveVersion(mode) {
+  let label = '';
+  if (mode === 'new') {
+    label = window.prompt('Име на версията (по избор):', '') || '';
+  }
+  const body = { mode, data: collectState(), label };
+  if (mode === 'overwrite' && loadedVersionId) body.id = loadedVersionId;
+  try {
+    const res = await fetch(`${API_BASE}/save`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error('save failed');
+    const result = await res.json();
+    loadedVersionId = result.id;
+    setIndicator(mode === 'new' ? 'Запазено като нова версия' : 'Записано', false);
+    await refreshVersionList(result.id);
+  } catch (e) {
+    setIndicator('Грешка при запис', true);
+  }
+}
+
+document.addEventListener('input', () => setIndicator('Незаписани промени', true));
+document.addEventListener('change', () => setIndicator('Незаписани промени', true));
+
+document.getElementById('save-btn').addEventListener('click', () => saveVersion('overwrite'));
+document.getElementById('save-new-btn').addEventListener('click', () => saveVersion('new'));
+document.getElementById('load-version-btn').addEventListener('click', () => {
+  const id = document.getElementById('version-select').value;
+  if (id) loadVersion(id);
+});
+
+document.getElementById('reset-btn').addEventListener('click', () => {
+  applyState(null);
+  setIndicator('Незаписани промени', true);
+});
+
+(async () => {
+  await loadVersion();
+  await refreshVersionList(loadedVersionId);
+})();
+</script>
+</body>
+</html>
