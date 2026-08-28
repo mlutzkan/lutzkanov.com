@@ -299,7 +299,7 @@ function formatDate(iso) {
 async function refreshVersionList(selectId) {
   const select = document.getElementById('version-select');
   try {
-    const res = await fetch(`${API_BASE}/list`);
+    const res = await fetch(`${API_BASE}/list`, { cache: 'no-store' });
     const data = await res.json();
     select.innerHTML = '<option value="">Версии…</option>';
     (data.items || []).forEach(item => {
@@ -317,7 +317,7 @@ async function refreshVersionList(selectId) {
 async function loadVersion(id) {
   const url = id ? `${API_BASE}/load?id=${encodeURIComponent(id)}` : `${API_BASE}/load`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) throw new Error('load failed');
     const result = await res.json();
     loadedVersionId = result.id || null;
