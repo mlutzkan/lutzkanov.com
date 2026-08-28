@@ -328,7 +328,8 @@ async function loadVersion(id) {
   }
 }
 
-async function saveVersion(mode) {
+async function saveVersion(mode, opts) {
+  const silent = opts && opts.silent;
   let label = '';
   if (mode === 'new') {
     label = window.prompt('Име на версията (по избор):', '') || '';
@@ -344,15 +345,26 @@ async function saveVersion(mode) {
     if (!res.ok) throw new Error('save failed');
     const result = await res.json();
     loadedVersionId = result.id;
-    setIndicator(mode === 'new' ? 'Запазено като нова версия' : 'Записано', false);
+    if (!silent) {
+      setIndicator(mode === 'new' ? 'Запазено като нова версия' : 'Записано', false);
+    } else {
+      setIndicator('Автоматично запазено', false);
+    }
     await refreshVersionList(result.id);
   } catch (e) {
     setIndicator('Грешка при запис', true);
   }
 }
 
-document.addEventListener('input', () => setIndicator('Незаписани промени', true));
-document.addEventListener('change', () => setIndicator('Незаписани промени', true));
+let autoSaveTimeout;
+function scheduleAutoSave() {
+  setIndicator('Незаписани промени', true);
+  clearTimeout(autoSaveTimeout);
+  autoSaveTimeout = setTimeout(() => saveVersion('overwrite', { silent: true }), 1500);
+}
+
+document.addEventListener('input', scheduleAutoSave);
+document.addEventListener('change', scheduleAutoSave);
 
 document.getElementById('save-btn').addEventListener('click', () => saveVersion('overwrite'));
 document.getElementById('save-new-btn').addEventListener('click', () => saveVersion('new'));
