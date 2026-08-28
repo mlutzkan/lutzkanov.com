@@ -71,6 +71,35 @@ async function handleSave(request, env) {
   return jsonResponse({ id, savedAt: now });
 }
 
+async function handleDelete(request, env) {
+  const url = new URL(request.url);
+  const id = url.searchParams.get('id');
+  if (!id) {
+    return jsonResponse({ error: 'missing id' }, 400);
+  }
+
+  await env.KUKER_KV.delete(`v:${id}`);
+
+  const current = await env.KUKER_KV.get('current');
+  if (current === id) {
+    const list = await env.KUKER_KV.list({ prefix: 'v:' });
+    let newest = null;
+    for (const k of list.keys) {
+      const raw = await env.KUKER_KV.get(k.name);
+      if (!raw) continue;
+      const rec = JSON.parse(raw);
+      if (!newest || rec.savedAt > newest.savedAt) newest = rec;
+    }
+    if (newest) {
+      await env.KUKER_KV.put('current', newest.id);
+    } else {
+      await env.KUKER_KV.delete('current');
+    }
+  }
+
+  return jsonResponse({ deleted: id });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -83,6 +112,9 @@ export default {
     }
     if (url.pathname === '/kuker/api/save' && request.method === 'POST') {
       return handleSave(request, env);
+    }
+    if (url.pathname === '/kuker/api/delete' && request.method === 'DELETE') {
+      return handleDelete(request, env);
     }
 
     return env.ASSETS.fetch(request);

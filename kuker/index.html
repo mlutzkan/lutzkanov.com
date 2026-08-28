@@ -147,6 +147,7 @@
   <div class="spacer"></div>
   <select id="version-select"><option value="">Версии…</option></select>
   <button id="load-version-btn" type="button">Зареди</button>
+  <button id="delete-version-btn" type="button">Изтрий</button>
 </div>
 
 <div class="date-row">
@@ -358,6 +359,26 @@ document.getElementById('save-new-btn').addEventListener('click', () => saveVers
 document.getElementById('load-version-btn').addEventListener('click', () => {
   const id = document.getElementById('version-select').value;
   if (id) loadVersion(id);
+});
+
+document.getElementById('delete-version-btn').addEventListener('click', async () => {
+  const select = document.getElementById('version-select');
+  const id = select.value;
+  if (!id) return;
+  const label = select.options[select.selectedIndex].textContent;
+  if (!window.confirm(`Изтриване на "${label}"? Това не може да се отмени.`)) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/delete?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('delete failed');
+    if (loadedVersionId === id) {
+      await loadVersion();
+    }
+    await refreshVersionList(loadedVersionId);
+    setIndicator('Изтрито', false);
+  } catch (e) {
+    setIndicator('Грешка при изтриване', true);
+  }
 });
 
 document.getElementById('reset-btn').addEventListener('click', () => {
