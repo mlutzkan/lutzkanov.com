@@ -1,0 +1,11 @@
+name = "lutzkanov-com"
+main = "worker.js"
+compatibility_date = "2026-08-28"
+
+[assets]
+directory = "."
+binding = "ASSETS"
+
+[[kv_namespaces]]
+binding = "KUKER_KV"
+id = "c552cd9c4e7d49b98d58941a43572da5"
