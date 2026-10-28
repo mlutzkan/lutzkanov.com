@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Чек лист – Хижар (админ)</title>
+<style>
+  :root {
+    --bg: #faf9f6;
+    --card: #ffffff;
+    --border: #ddd8cc;
+    --text: #2c2c2a;
+    --text-secondary: #5f5e5a;
+    --text-muted: #888780;
+    --accent: #0f6e56;
+    --accent-bg: #e1f5ee;
+    --error: #b3261e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 20px 16px 60px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.5;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  body.checking #login, body.checking #app { display: none; }
+  body.locked #app { display: none; }
+  body:not(.locked) #login { display: none; }
+  .login-card {
+    margin: 14vh auto 0;
+    max-width: 360px;
+    padding: 22px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .login-card h1 { margin-bottom: 14px; }
+  #login-msg { color: var(--error); font-size: 13px; min-height: 20px; margin: 8px 0 0; }
+  #login-btn {
+    width: 100%;
+    margin-top: 10px;
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px;
+    cursor: pointer;
+  }
+  #login-btn:disabled { opacity: .6; cursor: default; }
+  .org { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin: 0 0 2px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 2px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 6px; text-transform: uppercase; letter-spacing: .02em; }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 16px; font-weight: 600; text-transform: uppercase; }
+  .header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  #logout-btn {
+    font-family: inherit;
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+  #progress {
+    font-size: 12px; color: var(--accent);
+    background: var(--accent-bg); padding: 2px 10px; border-radius: 10px;
+    white-space: nowrap;
+  }
+  #progress.done { background: var(--accent); color: #fff; }
+  input[type=text], input[type=time], input[type=date], input[type=password] {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+  }
+  input[type=text]:focus, input[type=time]:focus, input[type=date]:focus, input[type=password]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    resize: vertical;
+  }
+  .date-wrap { position: relative; display: flex; gap: 8px; }
+  #date-btn {
+    flex-shrink: 0;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    cursor: pointer;
+  }
+  #f-date-picker {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 44px;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .photo-block { padding: 0 0 12px 30px; }
+  .photo-btn {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .thumbs:not(:empty) { margin-top: 10px; }
+  .thumb { position: relative; width: 96px; height: 96px; }
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+    display: block;
+  }
+  .thumb.big { width: 100%; height: auto; }
+  .thumb.big img { height: auto; object-fit: contain; cursor: zoom-out; }
+  .thumb-rm {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .field { margin-top: 10px; }
+  .field label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
+  section { margin-bottom: 24px; }
+  .top-block { margin-bottom: 22px; }
+  label.check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 0;
+    border-top: 1px solid var(--border);
+    cursor: pointer;
+  }
+  label.check-row input {
+    margin-top: 3px;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    accent-color: var(--accent);
+  }
+  label.check-row span { font-size: 14.5px; }
+  label.check-row input:checked + span { color: var(--text-muted); }
+  .final-block { border-top: 2px solid var(--border); margin-top: 8px; padding-top: 6px; }
+  #reset-btn {
+    font-size: 13px;
+    color: var(--text-secondary);
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  .actions { display: flex; align-items: center; gap: 10px; margin-top: 24px; }
+  #save-btn {
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 22px;
+    cursor: pointer;
+  }
+  #save-btn:disabled { opacity: .6; cursor: default; }
+  #save-status { font-size: 13px; color: var(--accent); flex: 1; }
+  #save-status.error { color: var(--error); }
+  #save-status a { color: inherit; }
+  #reset-btn { margin-left: auto; }
+  @media print {
+    body { padding: 0; }
+    .actions, #progress, #date-btn, .photo-btn, .thumb-rm, #logout-btn { display: none; }
+  }
+</style>
+</head>
+<body class="checking">
+
+<div id="login">
+  <form class="login-card" id="login-form">
+    <p class="org">Хижа KUKER</p>
+    <h1>Чек лист – админ</h1>
+    <div class="field">
+      <label for="login-pw">Парола</label>
+      <input type="password" id="login-pw" autocomplete="current-password" required>
+    </div>
+    <p id="login-msg"></p>
+    <button type="submit" id="login-btn">Вход</button>
+  </form>
+</div>
+
+<div id="app">
+  <div class="header-row">
+    <div>
+      <p class="org">Хижа KUKER</p>
+      <h1>Чек лист – Хижар</h1>
+    </div>
+    <div class="header-right">
+      <span id="progress"></span>
+      <button type="button" id="logout-btn">Изход</button>
+    </div>
+  </div>
+  <p class="subtitle">Затваряне на смяна</p>
+
+  <div class="top-block">
+    <div class="field">
+      <label for="f-date">Дата</label>
+      <div class="date-wrap">
+        <input type="text" id="f-date" inputmode="numeric" placeholder="дд/мм/гггг" maxlength="10" autocomplete="off">
+        <button type="button" id="date-btn" aria-label="Избери дата от календар">&#128197;</button>
+        <input type="date" id="f-date-picker" tabindex="-1" aria-hidden="true">
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-name">Име на служител</label>
+      <input type="text" id="f-name" value="Марто">
+    </div>
+    <div class="field">
+      <label for="f-start">Час на започване на проверката</label>
+      <input type="text" id="f-start" inputmode="numeric" placeholder="чч:мм" maxlength="5" autocomplete="off">
+    </div>
+  </div>
+
+  <div id="sections"></div>
+
+  <div class="final-block">
+    <div class="field">
+      <label for="f-notes">Забележки</label>
+      <textarea id="f-notes" rows="3">Няма</textarea>
+    </div>
+    <div class="field">
+      <label for="f-end">Час на приключване</label>
+      <input type="text" id="f-end" inputmode="numeric" placeholder="чч:мм" maxlength="5" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="actions">
+    <button id="save-btn" type="button">Запази</button>
+    <span id="save-status"></span>
+    <button id="reset-btn" type="button">Изчисти всичко</button>
+  </div>
+</div>
+
+<script src="/kuker/zatvaryane/sections.js"></script>
+<script>
+const API = '/kuker/api';
+const PHOTO_API = `${API}/zphoto`;
+const STORAGE_KEY = 'kuker-zatvaryane-smyana';
+const META_KEY = 'kuker-zatvaryane-smyana-meta';
+const DEFAULT_NAME = 'Марто';
+const DEFAULT_NOTES = 'Няма';
+
+const pad2 = n => String(n).padStart(2, '0');
+const formatDate = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
+const todayLocal = () => formatDate(new Date());
+const nowTime = () => { const d = new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+
+function dmyToIso(text) {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec((text || '').trim());
+  return m ? `${m[3]}-${pad2(m[2])}-${pad2(m[1])}` : '';
+}
+
+/* ---------- password gate ---------- */
+
+const loginMsg = document.getElementById('login-msg');
+const loginPw = document.getElementById('login-pw');
+const loginBtn = document.getElementById('login-btn');
+let appStarted = false;
+
+function lock(message) {
+  document.body.classList.remove('checking');
+  document.body.classList.add('locked');
+  loginMsg.textContent = message || '';
+  loginPw.value = '';
+  loginPw.focus();
+}
+
+function unlock() {
+  document.body.classList.remove('checking', 'locked');
+  if (!appStarted) {
+    appStarted = true;
+    startApp();
+  }
+}
+
+document.getElementById('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  loginBtn.disabled = true;
+  loginMsg.textContent = '';
+  try {
+    const res = await fetch(`${API}/zauth`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: loginPw.value })
+    });
+    if (res.ok) { unlock(); return; }
+    loginMsg.textContent = res.status === 503 ? 'Паролата още не е настроена на сървъра.'
+      : res.status === 401 ? 'Грешна парола.' : 'Грешка. Опитай пак.';
+  } catch (err) {
+    loginMsg.textContent = 'Няма връзка. Опитай пак.';
+  } finally {
+    loginBtn.disabled = false;
+    loginPw.value = '';
+  }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+  try { await fetch(`${API}/zlogout`, { method: 'POST' }); } catch (e) {}
+  lock('');
+});
+
+(async function boot() {
+  try {
+    const res = await fetch(`${API}/zauth`, { cache: 'no-store' });
+    const st = await res.json();
+    if (st.ok) unlock();
+    else lock(st.configured === false ? 'Паролата още не е настроена на сървъра.' : '');
+  } catch (e) {
+    lock('Няма връзка. Презареди страницата.');
+  }
+})();
+
+/* ---------- the checklist ---------- */
+
+function startApp() {
+  const photoBlocks = [];
+  let loadedPhotoDate = '';
+
+  function resizeImage(file, maxSide = 1280, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(b => b ? resolve(b) : reject(new Error('encode failed')), 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+      img.src = url;
+    });
+  }
+
+  const currentIso = () => dmyToIso(document.getElementById('f-date').value);
+
+  function buildPhotoBlock(key) {
+    let ids = [];
+    const photoUrl = id => `${PHOTO_API}?id=${encodeURIComponent(id)}`;
+
+    const block = document.createElement('div');
+    block.className = 'photo-block';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'photo-btn';
+    btn.textContent = 'Добави снимка';
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.setAttribute('capture', 'environment');
+    input.hidden = true;
+    const thumbs = document.createElement('div');
+    thumbs.className = 'thumbs';
+
+    const render = () => {
+      thumbs.innerHTML = '';
+      ids.forEach(id => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb';
+        const img = document.createElement('img');
+        img.src = photoUrl(id);
+        img.alt = 'Снимка';
+        img.addEventListener('click', () => wrap.classList.toggle('big'));
+        const rm = document.createElement('button');
+        rm.type = 'button';
+        rm.className = 'thumb-rm';
+        rm.textContent = '×';
+        rm.setAttribute('aria-label', 'Премахни снимката');
+        rm.addEventListener('click', async () => {
+          rm.disabled = true;
+          try {
+            const res = await fetch(photoUrl(id), { method: 'DELETE' });
+            if (res.status === 401) { rm.disabled = false; lock('Сесията е изтекла. Влез отново.'); return; }
+            if (!res.ok) throw new Error('delete failed');
+            ids = ids.filter(x => x !== id);
+            render();
+          } catch (e) {
+            rm.disabled = false;
+            alert('Снимката не може да бъде премахната. Опитай пак.');
+          }
+        });
+        wrap.append(img, rm);
+        thumbs.appendChild(wrap);
+      });
+    };
+
+    const setBusy = busy => {
+      btn.disabled = busy;
+      btn.textContent = busy ? 'Качва се…' : 'Добави снимка';
+    };
+
+    btn.addEventListener('click', () => {
+      if (!currentIso()) { alert('Първо въведи валидна дата (дд/мм/гггг).'); return; }
+      input.click();
+    });
+    input.addEventListener('change', async () => {
+      const file = input.files[0];
+      input.value = '';
+      if (!file) return;
+      const date = currentIso();
+      if (!date) { alert('Първо въведи валидна дата (дд/мм/гггг).'); return; }
+      setBusy(true);
+      try {
+        const blob = await resizeImage(file);
+        const res = await fetch(`${PHOTO_API}?date=${date}&item=${encodeURIComponent(key)}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg' },
+          body: blob
+        });
+        if (res.status === 401) { lock('Сесията е изтекла. Влез отново.'); return; }
+        if (!res.ok) throw new Error('upload failed');
+        if (date === currentIso()) { ids.push((await res.json()).id); render(); }
+      } catch (e) {
+        alert('Снимката не може да бъде качена. Провери връзката и опитай пак.');
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    const reload = async date => {
+      try {
+        const res = await fetch(`${API}/zphotos?date=${date}`, { cache: 'no-store' });
+        ids = res.ok ? ((await res.json()).photos[key] || []) : [];
+      } catch (e) { ids = []; }
+      render();
+    };
+
+    const clear = async () => {
+      const old = ids;
+      ids = [];
+      render();
+      await Promise.all(old.map(id => fetch(photoUrl(id), { method: 'DELETE' }).catch(() => {})));
+    };
+
+    photoBlocks.push({ reload, clear });
+    block.append(btn, input, thumbs);
+    return block;
+  }
+
+  function onDateChanged() {
+    const iso = currentIso();
+    if (iso && iso !== loadedPhotoDate) {
+      loadedPhotoDate = iso;
+      photoBlocks.forEach(b => b.reload(iso));
+    }
+  }
+
+  const container = document.getElementById('sections');
+  SECTIONS.forEach(sec => {
+    const wrap = document.createElement('section');
+    const h = document.createElement('h2');
+    h.textContent = sec.title;
+    wrap.appendChild(h);
+    sec.checks.forEach(item => {
+      const label = document.createElement('label');
+      label.className = 'check-row';
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.id = item.id;
+      const span = document.createElement('span');
+      span.textContent = item.text;
+      label.appendChild(input);
+      label.appendChild(span);
+      wrap.appendChild(label);
+      if (item.photo) wrap.appendChild(buildPhotoBlock(item.id));
+    });
+    container.appendChild(wrap);
+  });
+
+  function collectState() {
+    const state = {};
+    document.querySelectorAll('input[type=checkbox]').forEach(el => state[el.id] = el.checked);
+    document.querySelectorAll('#app input[type=text], #app textarea').forEach(el => state[el.id] = el.value);
+    return state;
+  }
+
+  function applyState(state) {
+    Object.keys(state || {}).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = !!state[id];
+      else el.value = state[id] || '';
+    });
+  }
+
+  function updateProgress() {
+    const boxes = document.querySelectorAll('#app input[type=checkbox]');
+    const done = [...boxes].filter(b => b.checked).length;
+    const p = document.getElementById('progress');
+    p.textContent = `${done} / ${boxes.length}`;
+    p.classList.toggle('done', done === boxes.length);
+  }
+
+  function saveDraft() {
+    updateProgress();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(collectState())); } catch (e) {}
+  }
+
+  const datePicker = document.getElementById('f-date-picker');
+  document.getElementById('date-btn').addEventListener('click', () => {
+    datePicker.value = currentIso() || '';
+    try { datePicker.showPicker(); } catch (e) { datePicker.focus(); datePicker.click(); }
+  });
+  datePicker.addEventListener('change', () => {
+    if (!datePicker.value) return;
+    const [y, m, d] = datePicker.value.split('-');
+    document.getElementById('f-date').value = `${d}/${m}/${y}`;
+    onDateChanged();
+    saveDraft();
+  });
+
+  document.addEventListener('input', e => {
+    if (e.target.id === 'f-date') onDateChanged();
+    saveDraft();
+  });
+  document.addEventListener('change', saveDraft);
+
+  document.getElementById('reset-btn').addEventListener('click', () => {
+    if (!window.confirm('Да изчистя ли всички отметки, полета и снимки за тази дата?')) return;
+    photoBlocks.forEach(b => b.clear());
+    document.querySelectorAll('#app input[type=checkbox]').forEach(el => el.checked = false);
+    document.querySelectorAll('#app input[type=text]').forEach(el => el.value = '');
+    document.getElementById('f-date').value = todayLocal();
+    document.getElementById('f-name').value = DEFAULT_NAME;
+    document.getElementById('f-notes').value = DEFAULT_NOTES;
+    document.getElementById('f-start').value = nowTime();
+    try { localStorage.removeItem(META_KEY); } catch (e) {}
+    loadedPhotoDate = '';
+    onDateChanged();
+    saveDraft();
+  });
+
+  const saveBtn = document.getElementById('save-btn');
+  const status = document.getElementById('save-status');
+
+  function showStatus(text, opts = {}) {
+    status.textContent = text;
+    status.classList.toggle('error', !!opts.error);
+    if (opts.link) {
+      status.append(' · ');
+      const a = document.createElement('a');
+      a.href = `/kuker/zatvaryane/#${opts.link}`;
+      a.textContent = 'Виж публично';
+      status.appendChild(a);
+    }
+    clearTimeout(status._t);
+    status._t = setTimeout(() => { status.textContent = ''; status.classList.remove('error'); }, 8000);
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const iso = currentIso();
+    if (!iso) { alert('Въведи валидна дата (дд/мм/гггг).'); return; }
+    document.getElementById('f-end').value = nowTime();
+    saveDraft();
+
+    const checks = {};
+    document.querySelectorAll('#app input[type=checkbox]').forEach(el => checks[el.id] = el.checked);
+    const payload = {
+      date: iso,
+      name: document.getElementById('f-name').value,
+      start: document.getElementById('f-start').value,
+      end: document.getElementById('f-end').value,
+      notes: document.getElementById('f-notes').value,
+      checks
+    };
+
+    saveBtn.disabled = true;
+    try {
+      const res = await fetch(`${API}/zrec`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (res.status === 401) { lock('Сесията е изтекла. Влез отново.'); return; }
+      if (!res.ok) throw new Error('save failed');
+      try { localStorage.setItem(META_KEY, JSON.stringify({ savedDate: iso })); } catch (e) {}
+      showStatus(`Записано в ${payload.end}`, { link: iso });
+    } catch (e) {
+      showStatus('Грешка при записа. Опитай пак.', { error: true });
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  // Restore the draft, unless the last published checklist was for an earlier day (start fresh).
+  const todayIso = dmyToIso(todayLocal());
+  let meta = null;
+  try { meta = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
+  if (meta && meta.savedDate && meta.savedDate !== todayIso) {
+    try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(META_KEY); } catch (e) {}
+  } else {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) applyState(JSON.parse(saved));
+    } catch (e) {}
+  }
+  document.getElementById('f-date').value = todayLocal();
+  document.getElementById('f-start').value = nowTime();
+  onDateChanged();
+  updateProgress();
+}
+</script>
+</body>
+</html>
