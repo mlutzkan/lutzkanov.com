@@ -49,7 +49,18 @@
     background: var(--card);
     color: var(--text);
   }
-  input[type=text]:focus, input[type=time]:focus, input[type=date]:focus { outline: none; border-color: var(--accent); }
+  input[type=text]:focus, input[type=time]:focus, input[type=date]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  textarea {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card);
+    color: var(--text);
+    resize: vertical;
+  }
   .date-wrap { position: relative; display: flex; gap: 8px; }
   #date-btn {
     flex-shrink: 0;
@@ -194,6 +205,10 @@
 
 <div class="final-block">
   <div class="field">
+    <label for="f-notes">Забележки</label>
+    <textarea id="f-notes" rows="3">Няма</textarea>
+  </div>
+  <div class="field">
     <label for="f-end">Час на приключване</label>
     <input type="text" id="f-end" inputmode="numeric" placeholder="чч:мм" maxlength="5" autocomplete="off">
   </div>
@@ -220,7 +235,7 @@ const SECTIONS = [
   {
     title: "2. Музика и електрическо оборудване",
     checks: [
-      "Изключи музиката в салона.",
+      { text: "Изключи музиката в салона.", photo: true },
       "Изключи озвучаването и свързаните устройства според инструкциите.",
       "Изключи ненужните електрически уреди.",
       "Провери дали няма оставени включени уреди, които не трябва да работят след затваряне.",
@@ -439,7 +454,7 @@ const STORAGE_KEY = 'kuker-zatvaryane-smyana';
 function collectState() {
   const state = {};
   document.querySelectorAll('input[type=checkbox]').forEach(el => state[el.id] = el.checked);
-  document.querySelectorAll('input[type=text], input[type=time]').forEach(el => state[el.id] = el.value);
+  document.querySelectorAll('input[type=text], input[type=time], textarea').forEach(el => state[el.id] = el.value);
   return state;
 }
 
@@ -448,6 +463,7 @@ const formatDate = d => `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getF
 const todayLocal = () => formatDate(new Date());
 const nowTime = () => { const d = new Date(); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
 const DEFAULT_NAME = 'Марто';
+const DEFAULT_NOTES = 'Няма';
 
 function dmyToIso(text) {
   const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(text.trim());
@@ -498,6 +514,7 @@ document.getElementById('reset-btn').addEventListener('click', () => {
   document.querySelectorAll('input[type=text], input[type=time]').forEach(el => el.value = '');
   document.getElementById('f-date').value = todayLocal();
   document.getElementById('f-name').value = DEFAULT_NAME;
+  document.getElementById('f-notes').value = DEFAULT_NOTES;
   document.getElementById('f-start').value = nowTime();
   save();
 });
