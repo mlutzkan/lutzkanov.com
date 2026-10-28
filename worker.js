@@ -108,6 +108,16 @@ const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 const validPhotoItem = (item) => /^c\d{1,3}$/.test(item || '');
 const validPhotoId = (id) => /^c\d{1,3}:\d{10,}-[a-z0-9]{4,}$/.test(id || '');
 
+// KV key listings lag by up to a minute, so photo ids per item live in an index record instead.
+async function readPhotoIndex(env, item) {
+  const raw = await env.KUKER_KV.get(`zphotoidx:${item}`);
+  try { return raw ? JSON.parse(raw) : []; } catch (e) { return []; }
+}
+
+async function writePhotoIndex(env, item, ids) {
+  await env.KUKER_KV.put(`zphotoidx:${item}`, JSON.stringify(ids));
+}
+
 async function handlePhotoUpload(request, env) {
   const url = new URL(request.url);
   const item = url.searchParams.get('item');
@@ -125,6 +135,9 @@ async function handlePhotoUpload(request, env) {
 
   const id = `${item}:${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await env.KUKER_KV.put(PHOTO_PREFIX + id, buf, { metadata: { type } });
+  const ids = await readPhotoIndex(env, item);
+  ids.push(id);
+  await writePhotoIndex(env, item, ids);
   return jsonResponse({ id });
 }
 
@@ -134,9 +147,7 @@ async function handlePhotoList(request, env) {
   if (!validPhotoItem(item)) {
     return jsonResponse({ error: 'invalid item' }, 400);
   }
-  const list = await env.KUKER_KV.list({ prefix: `${PHOTO_PREFIX}${item}:` });
-  const ids = list.keys.map((k) => k.name.slice(PHOTO_PREFIX.length)).sort();
-  return jsonResponse({ ids });
+  return jsonResponse({ ids: await readPhotoIndex(env, item) });
 }
 
 async function handlePhotoGet(request, env) {
@@ -162,6 +173,9 @@ async function handlePhotoDelete(request, env) {
     return jsonResponse({ error: 'invalid id' }, 400);
   }
   await env.KUKER_KV.delete(PHOTO_PREFIX + id);
+  const item = id.split(':')[0];
+  const ids = await readPhotoIndex(env, item);
+  await writePhotoIndex(env, item, ids.filter((x) => x !== id));
   return jsonResponse({ deleted: id });
 }
 
