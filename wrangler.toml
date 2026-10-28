@@ -1,6 +1,8 @@
 name = "lutzkanov-com"
 main = "worker.js"
 compatibility_date = "2026-08-28"
+# Keep variables/secrets set in the dashboard (ADMIN_PASSWORD) instead of wiping them on every deploy.
+keep_vars = true
 
 [assets]
 directory = "."
