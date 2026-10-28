@@ -271,15 +271,12 @@ const SECTIONS = [
   }
 ];
 
-const PHOTO_KEY = 'kuker-zatvaryane-photos';
-let photos = {};
-try { photos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}'); } catch (e) { photos = {}; }
-const photoRenders = [];
-
-function savePhotos() {
-  try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); return true; }
-  catch (e) { return false; }
-}
+const PHOTO_API = '/kuker/api/zphoto';
+const PHOTO_LIST_API = '/kuker/api/zphotos';
+const LEGACY_KEY = 'kuker-zatvaryane-photos';
+let legacyPhotos = {};
+try { legacyPhotos = JSON.parse(localStorage.getItem(LEGACY_KEY) || '{}'); } catch (e) { legacyPhotos = {}; }
+const photoClearers = [];
 
 function resizeImage(file, maxSide = 1280, quality = 0.7) {
   return new Promise((resolve, reject) => {
@@ -292,14 +289,27 @@ function resizeImage(file, maxSide = 1280, quality = 0.7) {
       canvas.height = Math.round(img.height * scale);
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', quality));
+      canvas.toBlob(b => b ? resolve(b) : reject(new Error('encode failed')), 'image/jpeg', quality);
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
     img.src = url;
   });
 }
 
+async function uploadPhoto(item, blob) {
+  const res = await fetch(`${PHOTO_API}?item=${encodeURIComponent(item)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'image/jpeg' },
+    body: blob
+  });
+  if (!res.ok) throw new Error('upload failed');
+  return (await res.json()).id;
+}
+
 function buildPhotoBlock(key) {
+  let ids = [];
+  const photoUrl = id => `${PHOTO_API}?id=${encodeURIComponent(id)}`;
+
   const block = document.createElement('div');
   block.className = 'photo-block';
   const btn = document.createElement('button');
@@ -316,11 +326,11 @@ function buildPhotoBlock(key) {
 
   const render = () => {
     thumbs.innerHTML = '';
-    (photos[key] || []).forEach((src, i) => {
+    ids.forEach(id => {
       const wrap = document.createElement('div');
       wrap.className = 'thumb';
       const img = document.createElement('img');
-      img.src = src;
+      img.src = photoUrl(id);
       img.alt = 'Снимка';
       img.addEventListener('click', () => wrap.classList.toggle('big'));
       const rm = document.createElement('button');
@@ -328,15 +338,26 @@ function buildPhotoBlock(key) {
       rm.className = 'thumb-rm';
       rm.textContent = '×';
       rm.setAttribute('aria-label', 'Премахни снимката');
-      rm.addEventListener('click', () => {
-        photos[key].splice(i, 1);
-        if (!photos[key].length) delete photos[key];
-        savePhotos();
-        render();
+      rm.addEventListener('click', async () => {
+        rm.disabled = true;
+        try {
+          const res = await fetch(photoUrl(id), { method: 'DELETE' });
+          if (!res.ok) throw new Error('delete failed');
+          ids = ids.filter(x => x !== id);
+          render();
+        } catch (e) {
+          rm.disabled = false;
+          alert('Снимката не може да бъде премахната. Опитай пак.');
+        }
       });
       wrap.append(img, rm);
       thumbs.appendChild(wrap);
     });
+  };
+
+  const setBusy = busy => {
+    btn.disabled = busy;
+    btn.textContent = busy ? 'Качва се…' : 'Добави снимка';
   };
 
   btn.addEventListener('click', () => input.click());
@@ -344,23 +365,48 @@ function buildPhotoBlock(key) {
     const file = input.files[0];
     input.value = '';
     if (!file) return;
+    setBusy(true);
     try {
-      const data = await resizeImage(file);
-      (photos[key] = photos[key] || []).push(data);
-      if (!savePhotos()) {
-        photos[key].pop();
-        if (!photos[key].length) delete photos[key];
-        alert('Няма достатъчно място за запазване на снимката.');
-      }
+      const blob = await resizeImage(file);
+      ids.push(await uploadPhoto(key, blob));
+      render();
     } catch (e) {
-      alert('Снимката не може да бъде добавена.');
+      alert('Снимката не може да бъде качена. Провери връзката и опитай пак.');
+    } finally {
+      setBusy(false);
     }
+  });
+
+  // Load photos already uploaded; also move any old phone-stored copies to the site.
+  (async () => {
+    try {
+      const res = await fetch(`${PHOTO_LIST_API}?item=${encodeURIComponent(key)}`, { cache: 'no-store' });
+      if (res.ok) ids = (await res.json()).ids || [];
+      render();
+    } catch (e) {}
+    const legacy = legacyPhotos[key];
+    if (legacy && legacy.length) {
+      try {
+        for (const dataUrl of legacy) {
+          const blob = await (await fetch(dataUrl)).blob();
+          ids.push(await uploadPhoto(key, blob));
+        }
+        delete legacyPhotos[key];
+        if (Object.keys(legacyPhotos).length) localStorage.setItem(LEGACY_KEY, JSON.stringify(legacyPhotos));
+        else localStorage.removeItem(LEGACY_KEY);
+        render();
+      } catch (e) {}
+    }
+  })();
+
+  photoClearers.push(async () => {
+    const old = ids;
+    ids = [];
     render();
+    await Promise.all(old.map(id => fetch(photoUrl(id), { method: 'DELETE' }).catch(() => {})));
   });
 
   block.append(btn, input, thumbs);
-  photoRenders.push(render);
-  render();
   return block;
 }
 
@@ -447,9 +493,7 @@ document.addEventListener('change', save);
 
 document.getElementById('reset-btn').addEventListener('click', () => {
   if (!window.confirm('Да изчистя ли всички отметки, полета и снимки?')) return;
-  photos = {};
-  savePhotos();
-  photoRenders.forEach(r => r());
+  photoClearers.forEach(c => c());
   document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
   document.querySelectorAll('input[type=text], input[type=time]').forEach(el => el.value = '');
   document.getElementById('f-date').value = todayLocal();
