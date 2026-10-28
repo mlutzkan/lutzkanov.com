@@ -70,6 +70,45 @@
     opacity: 0;
     pointer-events: none;
   }
+  .photo-block { padding: 0 0 12px 30px; }
+  .photo-btn {
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+  }
+  .thumbs { display: flex; flex-wrap: wrap; gap: 8px; }
+  .thumbs:not(:empty) { margin-top: 10px; }
+  .thumb { position: relative; width: 96px; height: 96px; }
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+    display: block;
+  }
+  .thumb.big { width: 100%; height: auto; }
+  .thumb.big img { height: auto; object-fit: contain; cursor: zoom-out; }
+  .thumb-rm {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, .6);
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
   .field { margin-top: 10px; }
   .field label { font-size: 13px; color: var(--text-secondary); display: block; margin-bottom: 4px; }
   section { margin-bottom: 24px; }
@@ -117,7 +156,7 @@
   #reset-btn { margin-left: auto; }
   @media print {
     body { padding: 0; }
-    .actions, #progress, #date-btn { display: none; }
+    .actions, #progress, #date-btn, .photo-btn, .thumb-rm { display: none; }
   }
 </style>
 </head>
@@ -158,14 +197,6 @@
     <label for="f-end">Час на приключване</label>
     <input type="text" id="f-end" inputmode="numeric" placeholder="чч:мм" maxlength="5" autocomplete="off">
   </div>
-  <div class="field">
-    <label for="f-sign">Подпис на хижаря</label>
-    <input type="text" id="f-sign">
-  </div>
-  <div class="field">
-    <label for="f-checked">Проверил отговорник</label>
-    <input type="text" id="f-checked">
-  </div>
 </div>
 
 <div class="actions">
@@ -181,7 +212,7 @@ const SECTIONS = [
     checks: [
       "Провери състоянието на камината преди затваряне.",
       "Не добавяй дърва, ако обектът ще се затваря и огънят трябва да изгасне.",
-      "Увери се, че камината е оставена в безопасно състояние съгласно инструкциите за експлоатация.",
+      { text: "Увери се, че камината е оставена в безопасно състояние съгласно инструкциите за експлоатация.", photo: true },
       "Провери отоплителните уреди и ги изключи",
       "Провери дали няма необичайна миризма, дим или признаци на прегряване."
     ]
@@ -240,6 +271,98 @@ const SECTIONS = [
   }
 ];
 
+const PHOTO_KEY = 'kuker-zatvaryane-photos';
+let photos = {};
+try { photos = JSON.parse(localStorage.getItem(PHOTO_KEY) || '{}'); } catch (e) { photos = {}; }
+const photoRenders = [];
+
+function savePhotos() {
+  try { localStorage.setItem(PHOTO_KEY, JSON.stringify(photos)); return true; }
+  catch (e) { return false; }
+}
+
+function resizeImage(file, maxSide = 1280, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('bad image')); };
+    img.src = url;
+  });
+}
+
+function buildPhotoBlock(key) {
+  const block = document.createElement('div');
+  block.className = 'photo-block';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'photo-btn';
+  btn.textContent = 'Добави снимка';
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.hidden = true;
+  const thumbs = document.createElement('div');
+  thumbs.className = 'thumbs';
+
+  const render = () => {
+    thumbs.innerHTML = '';
+    (photos[key] || []).forEach((src, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'thumb';
+      const img = document.createElement('img');
+      img.src = src;
+      img.alt = 'Снимка';
+      img.addEventListener('click', () => wrap.classList.toggle('big'));
+      const rm = document.createElement('button');
+      rm.type = 'button';
+      rm.className = 'thumb-rm';
+      rm.textContent = '×';
+      rm.setAttribute('aria-label', 'Премахни снимката');
+      rm.addEventListener('click', () => {
+        photos[key].splice(i, 1);
+        if (!photos[key].length) delete photos[key];
+        savePhotos();
+        render();
+      });
+      wrap.append(img, rm);
+      thumbs.appendChild(wrap);
+    });
+  };
+
+  btn.addEventListener('click', () => input.click());
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
+    try {
+      const data = await resizeImage(file);
+      (photos[key] = photos[key] || []).push(data);
+      if (!savePhotos()) {
+        photos[key].pop();
+        if (!photos[key].length) delete photos[key];
+        alert('Няма достатъчно място за запазване на снимката.');
+      }
+    } catch (e) {
+      alert('Снимката не може да бъде добавена.');
+    }
+    render();
+  });
+
+  block.append(btn, input, thumbs);
+  photoRenders.push(render);
+  render();
+  return block;
+}
+
 const container = document.getElementById('sections');
 let checkCount = 0;
 SECTIONS.forEach(sec => {
@@ -247,7 +370,8 @@ SECTIONS.forEach(sec => {
   const h = document.createElement('h2');
   h.textContent = sec.title;
   wrap.appendChild(h);
-  sec.checks.forEach(text => {
+  sec.checks.forEach(item => {
+    const text = typeof item === 'string' ? item : item.text;
     const label = document.createElement('label');
     label.className = 'check-row';
     const input = document.createElement('input');
@@ -258,6 +382,7 @@ SECTIONS.forEach(sec => {
     label.appendChild(input);
     label.appendChild(span);
     wrap.appendChild(label);
+    if (typeof item !== 'string' && item.photo) wrap.appendChild(buildPhotoBlock(input.id));
   });
   container.appendChild(wrap);
 });
@@ -320,7 +445,10 @@ document.addEventListener('input', save);
 document.addEventListener('change', save);
 
 document.getElementById('reset-btn').addEventListener('click', () => {
-  if (!window.confirm('Да изчистя ли всички отметки и полета?')) return;
+  if (!window.confirm('Да изчистя ли всички отметки, полета и снимки?')) return;
+  photos = {};
+  savePhotos();
+  photoRenders.forEach(r => r());
   document.querySelectorAll('input[type=checkbox]').forEach(el => el.checked = false);
   document.querySelectorAll('input[type=text], input[type=time]').forEach(el => el.value = '');
   document.getElementById('f-date').value = todayLocal();
