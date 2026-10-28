@@ -365,6 +365,11 @@ function startApp() {
   const photoBlocks = [];
   let loadedPhotoDate = '';
 
+  // Remembers what was typed by hand (date, start, end) so a reload doesn't reset it.
+  let meta = {};
+  try { meta = JSON.parse(localStorage.getItem(META_KEY) || '{}') || {}; } catch (e) { meta = {}; }
+  const persistMeta = () => { try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) {} };
+
   function resizeImage(file, maxSide = 1280, quality = 0.7) {
     return new Promise((resolve, reject) => {
       const url = URL.createObjectURL(file);
@@ -488,6 +493,14 @@ function startApp() {
     return block;
   }
 
+  function rememberPickedDate() {
+    const text = document.getElementById('f-date').value.trim();
+    const iso = dmyToIso(text);
+    if (iso && iso !== dmyToIso(todayLocal())) meta.pickedDate = text;
+    else delete meta.pickedDate;
+    persistMeta();
+  }
+
   function onDateChanged() {
     const iso = currentIso();
     if (iso && iso !== loadedPhotoDate) {
@@ -557,11 +570,14 @@ function startApp() {
     const [y, m, d] = datePicker.value.split('-');
     document.getElementById('f-date').value = `${d}/${m}/${y}`;
     onDateChanged();
+    rememberPickedDate();
     saveDraft();
   });
 
   document.addEventListener('input', e => {
-    if (e.target.id === 'f-date') onDateChanged();
+    if (e.target.id === 'f-date') { onDateChanged(); rememberPickedDate(); }
+    if (e.target.id === 'f-start') { meta.startManual = true; persistMeta(); }
+    if (e.target.id === 'f-end') { meta.endManual = true; persistMeta(); }
     saveDraft();
   });
   document.addEventListener('change', saveDraft);
@@ -575,6 +591,7 @@ function startApp() {
     document.getElementById('f-name').value = DEFAULT_NAME;
     document.getElementById('f-notes').value = DEFAULT_NOTES;
     document.getElementById('f-start').value = nowTime();
+    meta = {};
     try { localStorage.removeItem(META_KEY); } catch (e) {}
     loadedPhotoDate = '';
     onDateChanged();
@@ -601,7 +618,12 @@ function startApp() {
   saveBtn.addEventListener('click', async () => {
     const iso = currentIso();
     if (!iso) { alert('Въведи валидна дата (дд/мм/гггг).'); return; }
-    document.getElementById('f-end').value = nowTime();
+    // Keep an end time typed by hand; otherwise stamp the current time.
+    const endEl = document.getElementById('f-end');
+    if (!(meta.endManual && endEl.value.trim())) {
+      endEl.value = nowTime();
+      meta.endManual = false;
+    }
     saveDraft();
 
     const checks = {};
@@ -624,7 +646,9 @@ function startApp() {
       });
       if (res.status === 401) { lock('Сесията е изтекла. Влез отново.'); return; }
       if (!res.ok) throw new Error('save failed');
-      try { localStorage.setItem(META_KEY, JSON.stringify({ savedDate: iso })); } catch (e) {}
+      meta.savedDate = iso;
+      delete meta.pickedDate;
+      persistMeta();
       showStatus(`Записано в ${payload.end}`, { link: iso });
     } catch (e) {
       showStatus('Грешка при записа. Опитай пак.', { error: true });
@@ -635,9 +659,8 @@ function startApp() {
 
   // Restore the draft, unless the last published checklist was for an earlier day (start fresh).
   const todayIso = dmyToIso(todayLocal());
-  let meta = null;
-  try { meta = JSON.parse(localStorage.getItem(META_KEY) || 'null'); } catch (e) {}
-  if (meta && meta.savedDate && meta.savedDate !== todayIso) {
+  if (meta.savedDate && meta.savedDate !== todayIso && !meta.pickedDate) {
+    meta = {};
     try { localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(META_KEY); } catch (e) {}
   } else {
     try {
@@ -645,8 +668,11 @@ function startApp() {
       if (saved) applyState(JSON.parse(saved));
     } catch (e) {}
   }
-  document.getElementById('f-date').value = todayLocal();
-  document.getElementById('f-start').value = nowTime();
+  // Today by default, unless a date was picked by hand and not saved yet.
+  document.getElementById('f-date').value = (meta.pickedDate && dmyToIso(meta.pickedDate)) ? meta.pickedDate : todayLocal();
+  if (!(meta.startManual && document.getElementById('f-start').value.trim())) {
+    document.getElementById('f-start').value = nowTime();
+  }
   onDateChanged();
   updateProgress();
 }
